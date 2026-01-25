@@ -25,6 +25,6 @@ eval "$(sandbox-agent credentials extract-env --export)"
 Run the web console (includes all dependencies):
 
 ```bash
-pnpm dev -F @sandbox-agent/web
+pnpm dev -F @sandbox-agent/inspector
 ```
 

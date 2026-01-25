@@ -41,7 +41,7 @@ Universal schema guidance:
 
 ### Default port references (update when CLI default changes)
 
-- `frontend/packages/web/src/App.tsx`
+- `frontend/packages/inspector/src/App.tsx`
 - `README.md`
 - `docs/cli.mdx`
 - `docs/frontend.mdx`

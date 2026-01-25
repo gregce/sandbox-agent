@@ -436,7 +436,7 @@ this machine is already authenticated with codex & claude & opencode (for codex)
 
 ## testing frontend
 
-in frontend/packages/web/ build a vite + react app that:
+in frontend/packages/inspector/ build a vite + react app that:
 
 - connect screen: prompts the user to provide an endpoint & optional token
     - shows instructions on how to run the sandbox-agent (including cors)

@@ -1,4 +1,6 @@
 packages:
   - "frontend/packages/*"
   - "sdks/*"
+  - "sdks/cli"
+  - "sdks/cli/platforms/*"
   - "resources/agent-schemas"

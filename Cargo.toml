@@ -7,3 +7,5 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Sandbox Agent Contributors"]
 license = "Apache-2.0"
+repository = "https://github.com/rivet-dev/sandbox-agent"
+description = "Universal agent API for AI coding assistants"

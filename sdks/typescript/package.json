@@ -1,9 +1,24 @@
 {
   "name": "sandbox-agent",
   "version": "0.1.0",
-  "private": true,
+  "description": "TypeScript SDK for sandbox-agent",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rivet-dev/sandbox-agent"
+  },
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "generate:openapi": "cargo check -p sandbox-agent-openapi-gen && cargo run -p sandbox-agent-openapi-gen -- --out src/generated/openapi.json",
     "generate:types": "openapi-typescript src/generated/openapi.json -o src/generated/openapi.ts",
@@ -14,5 +29,8 @@
     "@types/node": "^22.0.0",
     "openapi-typescript": "^6.7.0",
     "typescript": "^5.7.0"
+  },
+  "optionalDependencies": {
+    "@sandbox-agent/cli": "0.1.0"
   }
 }

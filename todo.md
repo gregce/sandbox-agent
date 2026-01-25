@@ -68,10 +68,11 @@
 - [ ] Run the full suite against every agent (Claude/Codex/OpenCode/Amp) without mocks
 - [x] Add real install/version/spawn tests for Claude/Codex/OpenCode (Amp conditional)
 - [x] Expand agent lifecycle tests (reinstall, session id extraction, resume, plan mode)
-- [ ] Add OpenCode server-mode tests (session create, prompt, SSE)
+- [x] Add OpenCode server-mode tests (session create, prompt, SSE)
 - [ ] Add tests for question/permission flows using deterministic prompts
+- [x] Add HTTP/SSE snapshot tests for real agents (env-configured)
 
-## Frontend (frontend/packages/web)
+## Frontend (frontend/packages/inspector)
 - [x] Build Vite + React app with connect screen (endpoint + optional token)
 - [x] Add instructions to run sandbox-agent (including CORS)
 - [x] Implement full agent UI covering all features

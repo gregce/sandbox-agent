@@ -16,6 +16,22 @@ const BINARY_FILES = [
   "sandbox-agent-aarch64-apple-darwin",
 ];
 
+const CRATE_ORDER = [
+  "error",
+  "agent-credentials",
+  "agent-schema",
+  "universal-agent-schema",
+  "agent-management",
+  "sandbox-agent",
+];
+
+const PLATFORM_MAP: Record<string, { pkg: string; os: string; cpu: string; ext: string }> = {
+  "x86_64-unknown-linux-musl": { pkg: "linux-x64", os: "linux", cpu: "x64", ext: "" },
+  "x86_64-pc-windows-gnu": { pkg: "win32-x64", os: "win32", cpu: "x64", ext: ".exe" },
+  "x86_64-apple-darwin": { pkg: "darwin-x64", os: "darwin", cpu: "x64", ext: "" },
+  "aarch64-apple-darwin": { pkg: "darwin-arm64", os: "darwin", cpu: "arm64", ext: "" },
+};
+
 function parseArgs(argv: string[]) {
   const args = new Map<string, string>();
   const flags = new Set<string>();
@@ -279,6 +295,81 @@ function uploadBinaries(rootDir: string, version: string, latest: boolean) {
   }
 }
 
+// Pre-release checks
+function runChecks(rootDir: string) {
+  console.log("==> Running Rust checks");
+  run("cargo", ["fmt", "--all", "--", "--check"], { cwd: rootDir });
+  run("cargo", ["clippy", "--all-targets", "--", "-D", "warnings"], { cwd: rootDir });
+  run("cargo", ["test", "--all-targets"], { cwd: rootDir });
+
+  console.log("==> Running TypeScript checks");
+  run("pnpm", ["install"], { cwd: rootDir });
+  run("pnpm", ["run", "build"], { cwd: rootDir });
+}
+
+// Crates.io publishing
+function publishCrates(rootDir: string, version: string) {
+  // Update workspace version
+  const cargoPath = path.join(rootDir, "Cargo.toml");
+  let cargoContent = fs.readFileSync(cargoPath, "utf8");
+  cargoContent = cargoContent.replace(/^version = ".*"/m, `version = "${version}"`);
+  fs.writeFileSync(cargoPath, cargoContent);
+
+  for (const crate of CRATE_ORDER) {
+    console.log(`==> Publishing sandbox-agent-${crate}`);
+    const crateDir = path.join(rootDir, "engine", "packages", crate);
+    run("cargo", ["publish", "--allow-dirty"], { cwd: crateDir });
+    // Wait for crates.io index propagation
+    console.log("Waiting 30s for index...");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000);
+  }
+}
+
+// npm SDK publishing
+function publishNpmSdk(rootDir: string, version: string) {
+  const sdkDir = path.join(rootDir, "sdks", "typescript");
+  console.log("==> Publishing TypeScript SDK to npm");
+  run("npm", ["version", version, "--no-git-tag-version"], { cwd: sdkDir });
+  run("pnpm", ["install"], { cwd: sdkDir });
+  run("pnpm", ["run", "build"], { cwd: sdkDir });
+  run("npm", ["publish", "--access", "public"], { cwd: sdkDir });
+}
+
+// npm CLI publishing
+function publishNpmCli(rootDir: string, version: string) {
+  const cliDir = path.join(rootDir, "sdks", "cli");
+  const distDir = path.join(rootDir, "dist");
+
+  // Publish platform packages first
+  for (const [target, info] of Object.entries(PLATFORM_MAP)) {
+    const platformDir = path.join(cliDir, "platforms", info.pkg);
+    const binDir = path.join(platformDir, "bin");
+    fs.mkdirSync(binDir, { recursive: true });
+
+    // Copy binary
+    const srcBinary = path.join(distDir, `sandbox-agent-${target}${info.ext}`);
+    const dstBinary = path.join(binDir, `sandbox-agent${info.ext}`);
+    fs.copyFileSync(srcBinary, dstBinary);
+    if (info.ext !== ".exe") fs.chmodSync(dstBinary, 0o755);
+
+    // Update version and publish
+    console.log(`==> Publishing @sandbox-agent/cli-${info.pkg}`);
+    run("npm", ["version", version, "--no-git-tag-version"], { cwd: platformDir });
+    run("npm", ["publish", "--access", "public"], { cwd: platformDir });
+  }
+
+  // Publish main package (update optionalDeps versions)
+  console.log("==> Publishing @sandbox-agent/cli");
+  const pkgPath = path.join(cliDir, "package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+  pkg.version = version;
+  for (const dep of Object.keys(pkg.optionalDependencies || {})) {
+    pkg.optionalDependencies[dep] = version;
+  }
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+  run("npm", ["publish", "--access", "public"], { cwd: cliDir });
+}
+
 function main() {
   const { args, flags } = parseArgs(process.argv.slice(2));
   const versionArg = args.get("--version");
@@ -306,6 +397,22 @@ function main() {
     } else {
       process.stdout.write(latest ? "true" : "false");
     }
+  }
+
+  if (flags.has("--check")) {
+    runChecks(process.cwd());
+  }
+
+  if (flags.has("--publish-crates")) {
+    publishCrates(process.cwd(), version);
+  }
+
+  if (flags.has("--publish-npm-sdk")) {
+    publishNpmSdk(process.cwd(), version);
+  }
+
+  if (flags.has("--publish-npm-cli")) {
+    publishNpmCli(process.cwd(), version);
   }
 
   if (flags.has("--upload-typescript")) {

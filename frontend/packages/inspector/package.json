@@ -1,5 +1,5 @@
 {
-  "name": "@sandbox-agent/web",
+  "name": "@sandbox-agent/inspector",
   "private": true,
   "version": "0.0.0",
   "license": "Apache-2.0",
