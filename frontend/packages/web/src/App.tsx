@@ -424,13 +424,34 @@ export default function App() {
     setSessionError(null);
   };
 
-  const generateSessionId = () => {
+  const createNewSession = async () => {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let id = "session-";
     for (let i = 0; i < 8; i++) {
       id += chars[Math.floor(Math.random() * chars.length)];
     }
     setSessionId(id);
+    setEvents([]);
+    setOffset(0);
+    offsetRef.current = 0;
+    setSessionError(null);
+
+    // Create the session
+    try {
+      const body: Record<string, string> = { agent: agentId };
+      if (agentMode) body.agentMode = agentMode;
+      if (permissionMode) body.permissionMode = permissionMode;
+      if (model) body.model = model;
+      if (variant) body.variant = variant;
+
+      await apiFetch(`${API_PREFIX}/sessions/${id}`, {
+        method: "POST",
+        body
+      });
+      await fetchSessions();
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : "Unable to create session");
+    }
   };
 
   const appendEvents = useCallback((incoming: UniversalEvent[]) => {
@@ -774,8 +795,8 @@ export default function App() {
             <span className="sidebar-title">Sessions</span>
             <button
               className="sidebar-add-btn"
-              onClick={generateSessionId}
-              title="New session ID"
+              onClick={createNewSession}
+              title="New session"
             >
               <Plus size={14} />
             </button>
@@ -818,19 +839,7 @@ export default function App() {
             <div className="panel-header-left">
               <MessageSquare className="button-icon" />
               <span className="panel-title">Session</span>
-              <input
-                className="session-input"
-                value={sessionId}
-                onChange={(e) => setSessionId(e.target.value)}
-                placeholder="session-id"
-              />
-              <button
-                className="session-new-btn"
-                onClick={createSession}
-                title="Create new session"
-              >
-                New
-              </button>
+              <span className="session-id-display">{sessionId}</span>
             </div>
             {polling && (
               <span className="pill accent">Live</span>
