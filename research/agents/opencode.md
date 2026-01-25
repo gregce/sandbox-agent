@@ -403,14 +403,57 @@ interface TokenUsage {
 
 Available in message `info` field for assistant messages.
 
-## Agent Modes
+## Agent Modes vs Permission Modes
 
-| Mode | Agent ID |
-|------|----------|
-| `build` | `"build"` |
-| `plan` | `"plan"` |
+OpenCode properly separates these concepts:
 
-Modes map directly to OpenCode agent IDs.
+### Agent Modes
+
+Agents are first-class concepts with their own system prompts and behavior:
+
+| Agent ID | Description |
+|----------|-------------|
+| `build` | Default execution agent |
+| `plan` | Planning/analysis agent |
+| Custom | User-defined agents in config |
+
+```typescript
+// Sending a prompt with specific agent
+await client.session.promptAsync({
+  body: {
+    agent: "plan",  // or "build", or custom agent ID
+    parts: [{ type: "text", text: "..." }]
+  }
+});
+```
+
+### Listing Available Agents
+
+```typescript
+const agents = await client.app.agents({});
+// Returns: [{ id: "build", name: "Build", primary: true }, ...]
+```
+
+### Permission Modes
+
+Permissions are configured via rulesets on the session, separate from agent selection:
+
+```typescript
+interface PermissionRuleset {
+  // Tool-specific permission rules
+}
+```
+
+### Human-in-the-Loop
+
+OpenCode has full interactive HITL via SSE events:
+
+| Event | Endpoint |
+|-------|----------|
+| `question.asked` | `POST /question/{id}/reply` |
+| `permission.asked` | `POST /permission/{id}/reply` |
+
+See `research/human-in-the-loop.md` for full API details.
 
 ## Defaults
 

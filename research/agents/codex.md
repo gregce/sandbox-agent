@@ -193,9 +193,22 @@ function getThreadId(thread: unknown): string | null {
 }
 ```
 
-## Agent Modes
+## Agent Modes vs Permission Modes
 
-Modes are implemented via prompt prefixing:
+Codex separates sandbox levels (permissions) from behavioral modes (prompt prefixes).
+
+### Permission Modes (Sandbox Levels)
+
+| Mode | CLI Flag | Behavior |
+|------|----------|----------|
+| `read-only` | `-s read-only` | No file modifications |
+| `workspace-write` | `-s workspace-write` | Can modify workspace files |
+| `danger-full-access` | `-s danger-full-access` | Full system access |
+| `bypass` | `--dangerously-bypass-approvals-and-sandbox` | Skip all checks |
+
+### Agent Modes (Prompt Prefixes)
+
+Codex doesn't have true agent modes - behavior is controlled via prompt prefixing:
 
 | Mode | Prompt Prefix |
 |------|---------------|
@@ -214,6 +227,10 @@ function withModePrefix(prompt: string, mode: AgentMode): string {
   return prompt;
 }
 ```
+
+### Human-in-the-Loop
+
+Codex has no interactive HITL in SDK mode. All permissions must be configured upfront via sandbox level.
 
 ## Error Handling
 

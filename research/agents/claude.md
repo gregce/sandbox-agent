@@ -140,13 +140,39 @@ Claude CLI outputs newline-delimited JSON events:
 - Default timeout: 5 minutes (300,000 ms)
 - Process is killed with `SIGTERM` on timeout
 
-## Agent Modes
+## Agent Modes vs Permission Modes
 
-| Mode | Behavior |
-|------|----------|
-| `build` | Default execution mode |
-| `plan` | Adds `--permission-mode plan` flag |
-| `chat` | Available but no special handling |
+Claude conflates agent mode and permission mode - `plan` is a permission restriction that forces planning behavior.
+
+### Permission Modes
+
+| Mode | CLI Flag | Behavior |
+|------|----------|----------|
+| `default` | (none) | Normal permission prompts |
+| `acceptEdits` | `--permission-mode acceptEdits` | Auto-accept file edits |
+| `plan` | `--permission-mode plan` | Read-only, must ExitPlanMode to execute |
+| `bypassPermissions` | `--dangerously-skip-permissions` | Skip all permission checks |
+
+### Subagent Types
+
+Claude supports spawning subagents via the `Task` tool with `subagent_type`:
+- Custom agents defined in config
+- Built-in agents like "Explore", "Plan"
+
+### ExitPlanMode (Plan Approval)
+
+When in `plan` permission mode, agent invokes `ExitPlanMode` tool to request execution:
+
+```typescript
+interface ExitPlanModeInput {
+  allowedPrompts?: Array<{
+    tool: "Bash";
+    prompt: string;  // e.g., "run tests"
+  }>;
+}
+```
+
+This triggers a user approval event. In the universal API, this is converted to a question event with approve/reject options.
 
 ## Error Handling
 
