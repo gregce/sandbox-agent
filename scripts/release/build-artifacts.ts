@@ -11,9 +11,11 @@ async function buildAndUploadTypescriptSdk(opts: ReleaseOpts) {
 	console.log(`==> Building TypeScript SDK`);
 
 	// Build TypeScript SDK
+	// SANDBOX_AGENT_SKIP_INSPECTOR=1 skips building inspector frontend for openapi-gen
 	await $({
 		stdio: "inherit",
 		cwd: opts.root,
+		env: { ...process.env, SANDBOX_AGENT_SKIP_INSPECTOR: "1" },
 	})`pnpm --filter sandbox-agent build`;
 
 	console.log(`✅ TypeScript SDK built successfully`);
