@@ -5,7 +5,8 @@ Research notes on OpenAI Codex's configuration, credential discovery, and runtim
 ## Overview
 
 - **Provider**: OpenAI
-- **Execution Method**: SDK (`@openai/codex-sdk`) or CLI binary
+- **Execution Method (this repo)**: Codex App Server (JSON-RPC over stdio)
+- **Execution Method (alternatives)**: SDK (`@openai/codex-sdk`) or CLI binary
 - **Session Persistence**: Thread ID (string)
 - **Import**: Dynamic import to avoid bundling issues
 - **Binary Location**: `~/.nvm/versions/node/v24.3.0/bin/codex` (npm global install)
@@ -21,7 +22,7 @@ Research notes on OpenAI Codex's configuration, credential discovery, and runtim
 
 Sources: [Codex SDK docs](https://developers.openai.com/codex/sdk/), [GitHub](https://github.com/openai/codex)
 
-## CLI Usage (Alternative to SDK)
+## CLI Usage (Alternative to App Server / SDK)
 
 You can use the `codex` binary directly instead of the SDK:
 
@@ -129,40 +130,32 @@ for await (const event of events) {
 }
 ```
 
-## Event Types
+## App Server Protocol (JSON-RPC)
 
-| Event Type | Description |
-|------------|-------------|
-| `thread.started` | Thread initialized, contains `thread_id` |
-| `item.completed` | Item finished, check for `agent_message` type |
-| `turn.failed` | Turn failed with error message |
+Codex App Server uses JSON-RPC 2.0 over JSONL/stdin/stdout (no port required).
 
-### Event Structure
+### Key Requests
 
-```typescript
-// thread.started
-{
-  type: "thread.started",
-  thread_id: "thread_abc123"
-}
+- `initialize` → returns server info
+- `thread/start` → starts a new thread
+- `turn/start` → sends user input for a thread
 
-// item.completed (agent message)
-{
-  type: "item.completed",
-  item: {
-    type: "agent_message",
-    text: "Response text"
-  }
-}
+### Event Notifications (examples)
 
-// turn.failed
-{
-  type: "turn.failed",
-  error: {
-    message: "Error description"
-  }
-}
+```json
+{ "method": "thread/started", "params": { "thread": { "id": "thread_abc123" } } }
+{ "method": "item/completed", "params": { "item": { "type": "agentMessage", "text": "..." } } }
+{ "method": "turn/completed", "params": { "threadId": "thread_abc123", "turn": { "items": [] } } }
 ```
+
+### Approval Requests (server → client)
+
+The server can send JSON-RPC requests (with `id`) for approvals:
+
+- `item/commandExecution/requestApproval`
+- `item/fileChange/requestApproval`
+
+These require JSON-RPC responses with a decision payload.
 
 ## Response Schema
 

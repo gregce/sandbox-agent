@@ -1,5 +1,6 @@
 ---
 source: server/packages/sandbox-agent/tests/http_sse_snapshots.rs
+assertion_line: 1045
 expression: normalize_events(&question_events)
 ---
 - agent: claude
@@ -20,3 +21,11 @@ expression: normalize_events(&question_events)
         type: text
     role: assistant
   seq: 3
+- agent: claude
+  kind: message
+  message:
+    parts:
+      - text: "<redacted>"
+        type: text
+    role: assistant
+  seq: 4

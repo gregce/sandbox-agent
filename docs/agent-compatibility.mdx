@@ -8,7 +8,7 @@ description: "Supported agents, install methods, and streaming formats."
 | Agent | Provider | Binary | Install method | Session ID | Streaming format |
 |-------|----------|--------|----------------|------------|------------------|
 | Claude Code | Anthropic | `claude` | curl raw binary from GCS | `session_id` | JSONL via stdout |
-| Codex | OpenAI | `codex` | curl tarball from GitHub releases | `thread_id` | JSONL via stdout |
+| Codex | OpenAI | `codex` | curl tarball from GitHub releases | `thread_id` | JSON-RPC over stdio |
 | OpenCode | Multi-provider | `opencode` | curl tarball from GitHub releases | `session_id` | SSE or JSONL |
 | Amp | Sourcegraph | `amp` | curl raw binary from GCS | `session_id` | JSONL via stdout |
 
@@ -20,7 +20,7 @@ description: "Supported agents, install methods, and streaming formats."
 ## Capability notes
 
 - **Questions / permissions**: OpenCode natively supports these workflows. Claude plan approval is normalized into a question event.
-- **Streaming**: all agents stream events; OpenCode uses SSE while others use JSONL.
+- **Streaming**: all agents stream events; OpenCode uses SSE, Codex uses JSON-RPC over stdio, others use JSONL.
 - **Files and images**: normalized via `UniversalMessagePart` with `File` and `Image` parts.
 
 See [Universal API](/universal-api) for feature coverage details.

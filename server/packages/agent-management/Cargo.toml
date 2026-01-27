@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 sandbox-agent-agent-credentials.workspace = true
+sandbox-agent-extracted-agent-schemas.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -21,6 +21,8 @@
 - [x] Implement SSE endpoint for events with same semantics as JSON endpoint
 - [x] Replace in-memory session store with sandbox session manager (questions/permissions routing, long-lived processes)
 - [x] Remove legacy token header support
+- [x] Embed inspector frontend and serve it at `/ui`
+- [x] Log inspector URL when starting the HTTP server
 
 ## CLI
 - [x] Implement clap CLI flags: `--token`, `--no-token`, `--host`, `--port`, CORS flags
@@ -28,6 +30,8 @@
 - [x] Update `CLAUDE.md` to keep CLI endpoints in sync with HTTP API changes
 - [x] Prefix CLI API requests with `/v1`
 - [x] Add CLI credentials extractor subcommand
+- [x] Move daemon startup to `server` subcommand
+- [x] Add `sandbox-daemon` CLI alias
 
 ## HTTP API Endpoints
 - [x] POST `/agents/{}/install` with `reinstall` handling
@@ -46,6 +50,7 @@
 - [x] Implement install/version/spawn basics for Claude/Codex/OpenCode/Amp
 - [x] Implement agent install URL patterns + platform mappings for supported OS/arch
 - [x] Parse JSONL output for subprocess agents and extract session/result metadata
+- [x] Migrate Codex subprocess to App Server JSON-RPC protocol
 - [x] Map permissionMode to agent CLI flags (Claude/Codex/Amp)
 - [x] Implement session resume flags for Claude/OpenCode/Amp (Codex unsupported)
 - [x] Replace sandbox-agent core agent modules with new agent-management crate (delete originals)
@@ -74,6 +79,7 @@
 - [ ] Add tests for question/permission flows using deterministic prompts
 - [x] Add HTTP/SSE snapshot tests for real agents (env-configured)
 - [x] Add snapshot coverage for auth, CORS, and concurrent sessions
+- [x] Add inspector UI route test
 
 ## Frontend (frontend/packages/inspector)
 - [x] Build Vite + React app with connect screen (endpoint + optional token)
@@ -81,6 +87,7 @@
 - [x] Implement full agent UI covering all features
 - [x] Add HTTP request log with copyable curl command
 - [x] Add Content-Type header to CORS callout command
+- [x] Default inspector endpoint to current origin and auto-connect via health check
 
 ## TypeScript SDK
 - [x] Generate OpenAPI from utoipa and run `openapi-typescript`

@@ -1,12 +1,22 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
+use std::process::{
+    Child,
+    ChildStderr,
+    ChildStdin,
+    ChildStdout,
+    Command,
+    ExitStatus,
+    Stdio,
+};
+use std::time::{Duration, Instant};
 
 use flate2::read::GzDecoder;
 use reqwest::blocking::Client;
+use sandbox_agent_extracted_agent_schemas::codex as codex_schema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
@@ -163,6 +173,9 @@ impl AgentManager {
     }
 
     pub fn spawn(&self, agent: AgentId, options: SpawnOptions) -> Result<SpawnResult, AgentError> {
+        if agent == AgentId::Codex {
+            return self.spawn_codex_app_server(options);
+        }
         let path = self.resolve_binary(agent)?;
         let working_dir = options
             .working_dir
@@ -199,23 +212,7 @@ impl AgentManager {
                 if options.session_id.is_some() {
                     return Err(AgentError::ResumeUnsupported { agent });
                 }
-                command
-                    .arg("exec")
-                    .arg("--json");
-                match options.permission_mode.as_deref() {
-                    Some("plan") => {
-                        command.arg("--sandbox").arg("read-only");
-                    }
-                    Some("bypass") => {
-                        command.arg("--dangerously-bypass-approvals-and-sandbox");
-                    }
-                    _ => {}
-                }
-                if let Some(model) = options.model.as_deref() {
-                    command.arg("-m").arg(model);
-                }
-                let prompt = codex_prompt_for_mode(&options.prompt, options.agent_mode.as_deref());
-                command.arg(prompt);
+                command.arg("app-server");
             }
             AgentId::Opencode => {
                 command
@@ -275,12 +272,225 @@ impl AgentManager {
         agent: AgentId,
         options: SpawnOptions,
     ) -> Result<StreamingSpawn, AgentError> {
+        let codex_options = if agent == AgentId::Codex {
+            Some(options.clone())
+        } else {
+            None
+        };
         let mut command = self.build_command(agent, &options)?;
+        if agent == AgentId::Codex {
+            command.stdin(Stdio::piped());
+        }
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = command.spawn().map_err(AgentError::Io)?;
+        let stdin = child.stdin.take();
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
-        Ok(StreamingSpawn { child, stdout, stderr })
+        Ok(StreamingSpawn {
+            child,
+            stdin,
+            stdout,
+            stderr,
+            codex_options,
+        })
+    }
+
+    fn spawn_codex_app_server(&self, options: SpawnOptions) -> Result<SpawnResult, AgentError> {
+        if options.session_id.is_some() {
+            return Err(AgentError::ResumeUnsupported { agent: AgentId::Codex });
+        }
+        let mut command = self.build_command(AgentId::Codex, &options)?;
+        command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        for (key, value) in options.env {
+            command.env(key, value);
+        }
+
+        let mut child = command.spawn().map_err(AgentError::Io)?;
+        let mut stdin = child.stdin.take().ok_or_else(|| {
+            AgentError::Io(io::Error::new(io::ErrorKind::Other, "missing codex stdin"))
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            AgentError::Io(io::Error::new(io::ErrorKind::Other, "missing codex stdout"))
+        })?;
+        let stderr = child.stderr.take().ok_or_else(|| {
+            AgentError::Io(io::Error::new(io::ErrorKind::Other, "missing codex stderr"))
+        })?;
+
+        let stderr_handle = std::thread::spawn(move || {
+            let mut buffer = String::new();
+            let _ = BufReader::new(stderr).read_to_string(&mut buffer);
+            buffer
+        });
+
+        let approval_policy = codex_approval_policy(options.permission_mode.as_deref());
+        let sandbox_mode = codex_sandbox_mode(options.permission_mode.as_deref());
+        let sandbox_policy = codex_sandbox_policy(options.permission_mode.as_deref());
+        let prompt = codex_prompt_for_mode(&options.prompt, options.agent_mode.as_deref());
+        let cwd = options
+            .working_dir
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string());
+
+        let mut next_id = 1i64;
+        let init_id = next_request_id(&mut next_id);
+        send_json_line(
+            &mut stdin,
+            &codex_schema::ClientRequest::Initialize {
+                id: init_id.clone(),
+                params: codex_schema::InitializeParams {
+                    client_info: codex_schema::ClientInfo {
+                        name: "sandbox-agent".to_string(),
+                        title: Some("sandbox-agent".to_string()),
+                        version: env!("CARGO_PKG_VERSION").to_string(),
+                    },
+                },
+            },
+        )?;
+
+        let mut init_done = false;
+        let mut thread_start_sent = false;
+        let mut thread_start_id: Option<String> = None;
+        let mut turn_start_sent = false;
+        let mut thread_id: Option<String> = None;
+        let mut stdout_buffer = String::new();
+        let mut events = Vec::new();
+        let mut line = String::new();
+        let mut reader = BufReader::new(stdout);
+        let mut completed = false;
+        while reader.read_line(&mut line).map_err(AgentError::Io)? > 0 {
+            stdout_buffer.push_str(&line);
+            let trimmed = line.trim_end_matches(&['\r', '\n'][..]).to_string();
+            line.clear();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let value: Value = match serde_json::from_str(&trimmed) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            let message: codex_schema::JsonrpcMessage =
+                match serde_json::from_value(value.clone()) {
+                    Ok(message) => message,
+                    Err(_) => continue,
+                };
+            match message {
+                codex_schema::JsonrpcMessage::Response(response) => {
+                    let response_id = response.id.to_string();
+                    if !init_done && response_id == init_id.to_string() {
+                        init_done = true;
+                        send_json_line(
+                            &mut stdin,
+                            &codex_schema::JsonrpcNotification {
+                                method: "initialized".to_string(),
+                                params: None,
+                            },
+                        )?;
+                        let request_id = next_request_id(&mut next_id);
+                        let request_id_str = request_id.to_string();
+                        let mut params = codex_schema::ThreadStartParams::default();
+                        params.approval_policy = approval_policy;
+                        params.sandbox = sandbox_mode;
+                        params.model = options.model.clone();
+                        params.cwd = cwd.clone();
+                        send_json_line(
+                            &mut stdin,
+                            &codex_schema::ClientRequest::ThreadStart { id: request_id, params },
+                        )?;
+                        thread_start_id = Some(request_id_str);
+                        thread_start_sent = true;
+                    } else if thread_start_id.as_deref() == Some(&response_id) && thread_id.is_none() {
+                        thread_id = codex_thread_id_from_response(&response.result);
+                    }
+                    events.push(value);
+                }
+                codex_schema::JsonrpcMessage::Notification(_) => {
+                    if let Ok(notification) =
+                        serde_json::from_value::<codex_schema::ServerNotification>(value.clone())
+                    {
+                        if thread_id.is_none() {
+                            thread_id = codex_thread_id_from_notification(&notification);
+                        }
+                        if matches!(
+                            notification,
+                            codex_schema::ServerNotification::TurnCompleted(_)
+                                | codex_schema::ServerNotification::Error(_)
+                        ) {
+                            completed = true;
+                        }
+                        if let codex_schema::ServerNotification::ItemCompleted(params) = &notification {
+                            if matches!(params.item, codex_schema::ThreadItem::AgentMessage { .. }) {
+                                completed = true;
+                            }
+                        }
+                    }
+                    events.push(value);
+                }
+                codex_schema::JsonrpcMessage::Request(_) => {
+                    events.push(value);
+                }
+                codex_schema::JsonrpcMessage::Error(_) => {
+                    events.push(value);
+                    completed = true;
+                }
+            }
+            if thread_id.is_some() && thread_start_sent && !turn_start_sent {
+                let request_id = next_request_id(&mut next_id);
+                let params = codex_schema::TurnStartParams {
+                    approval_policy,
+                    collaboration_mode: None,
+                    cwd: cwd.clone(),
+                    effort: None,
+                    input: vec![codex_schema::UserInput::Text {
+                        text: prompt.clone(),
+                        text_elements: Vec::new(),
+                    }],
+                    model: options.model.clone(),
+                    output_schema: None,
+                    personality: None,
+                    sandbox_policy: sandbox_policy.clone(),
+                    summary: None,
+                    thread_id: thread_id.clone().unwrap_or_default(),
+                };
+                send_json_line(
+                    &mut stdin,
+                    &codex_schema::ClientRequest::TurnStart {
+                        id: request_id,
+                        params,
+                    },
+                )?;
+                turn_start_sent = true;
+            }
+            if completed {
+                break;
+            }
+        }
+
+        drop(stdin);
+        let status = if completed {
+            let start = Instant::now();
+            loop {
+                if let Some(status) = child.try_wait().map_err(AgentError::Io)? {
+                    break status;
+                }
+                if start.elapsed() > Duration::from_secs(5) {
+                    let _ = child.kill();
+                    break child.wait().map_err(AgentError::Io)?;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        } else {
+            child.wait().map_err(AgentError::Io)?
+        };
+        let stderr_output = stderr_handle.join().unwrap_or_default();
+
+        Ok(SpawnResult {
+            status,
+            stdout: stdout_buffer,
+            stderr: stderr_output,
+            session_id: extract_session_id(AgentId::Codex, &events),
+            result: extract_result_text(AgentId::Codex, &events),
+            events,
+        })
     }
 
     fn build_command(&self, agent: AgentId, options: &SpawnOptions) -> Result<Command, AgentError> {
@@ -320,21 +530,7 @@ impl AgentManager {
                 if options.session_id.is_some() {
                     return Err(AgentError::ResumeUnsupported { agent });
                 }
-                command.arg("exec").arg("--json");
-                match options.permission_mode.as_deref() {
-                    Some("plan") => {
-                        command.arg("--sandbox").arg("read-only");
-                    }
-                    Some("bypass") => {
-                        command.arg("--dangerously-bypass-approvals-and-sandbox");
-                    }
-                    _ => {}
-                }
-                if let Some(model) = options.model.as_deref() {
-                    command.arg("-m").arg(model);
-                }
-                let prompt = codex_prompt_for_mode(&options.prompt, options.agent_mode.as_deref());
-                command.arg(prompt);
+                command.arg("app-server");
             }
             AgentId::Opencode => {
                 command.arg("run").arg("--format").arg("json");
@@ -441,8 +637,10 @@ pub struct SpawnResult {
 #[derive(Debug)]
 pub struct StreamingSpawn {
     pub child: Child,
+    pub stdin: Option<ChildStdin>,
     pub stdout: Option<ChildStdout>,
     pub stderr: Option<ChildStderr>,
+    pub codex_options: Option<SpawnOptions>,
 }
 
 #[derive(Debug, Error)]
@@ -497,6 +695,83 @@ fn codex_prompt_for_mode(prompt: &str, mode: Option<&str>) -> String {
     }
 }
 
+fn codex_approval_policy(mode: Option<&str>) -> Option<codex_schema::AskForApproval> {
+    match mode {
+        Some("plan") => Some(codex_schema::AskForApproval::Untrusted),
+        Some("bypass") => Some(codex_schema::AskForApproval::Never),
+        _ => None,
+    }
+}
+
+fn codex_sandbox_mode(mode: Option<&str>) -> Option<codex_schema::SandboxMode> {
+    match mode {
+        Some("plan") => Some(codex_schema::SandboxMode::ReadOnly),
+        Some("bypass") => Some(codex_schema::SandboxMode::DangerFullAccess),
+        _ => None,
+    }
+}
+
+fn codex_sandbox_policy(mode: Option<&str>) -> Option<codex_schema::SandboxPolicy> {
+    match mode {
+        Some("plan") => Some(codex_schema::SandboxPolicy::ReadOnly),
+        Some("bypass") => Some(codex_schema::SandboxPolicy::DangerFullAccess),
+        _ => None,
+    }
+}
+
+fn next_request_id(next_id: &mut i64) -> codex_schema::RequestId {
+    let id = *next_id;
+    *next_id += 1;
+    codex_schema::RequestId::from(id)
+}
+
+fn send_json_line<T: Serialize>(stdin: &mut ChildStdin, payload: &T) -> Result<(), AgentError> {
+    let line = serde_json::to_string(payload)
+        .map_err(|err| AgentError::Io(io::Error::new(io::ErrorKind::Other, err)))?;
+    writeln!(stdin, "{line}").map_err(AgentError::Io)?;
+    stdin.flush().map_err(AgentError::Io)?;
+    Ok(())
+}
+
+fn codex_thread_id_from_notification(
+    notification: &codex_schema::ServerNotification,
+) -> Option<String> {
+    match notification {
+        codex_schema::ServerNotification::ThreadStarted(params) => Some(params.thread.id.clone()),
+        codex_schema::ServerNotification::TurnStarted(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::TurnCompleted(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemStarted(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemCompleted(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemAgentMessageDelta(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemReasoningTextDelta(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemReasoningSummaryTextDelta(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemCommandExecutionOutputDelta(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemFileChangeOutputDelta(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemMcpToolCallProgress(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ThreadTokenUsageUpdated(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::TurnDiffUpdated(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::TurnPlanUpdated(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemCommandExecutionTerminalInteraction(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ItemReasoningSummaryPartAdded(params) => Some(params.thread_id.clone()),
+        codex_schema::ServerNotification::ThreadCompacted(params) => Some(params.thread_id.clone()),
+        _ => None,
+    }
+}
+
+fn codex_thread_id_from_response(result: &Value) -> Option<String> {
+    if let Some(id) = result
+        .get("thread")
+        .and_then(|thread| thread.get("id"))
+        .and_then(Value::as_str)
+    {
+        return Some(id.to_string());
+    }
+    if let Some(id) = result.get("threadId").and_then(Value::as_str) {
+        return Some(id.to_string());
+    }
+    None
+}
+
 fn extract_nested_string(value: &Value, path: &[&str]) -> Option<String> {
     let mut current = value;
     for key in path {
@@ -517,19 +792,36 @@ fn extract_session_id(agent: AgentId, events: &[Value]) -> Option<String> {
                     return Some(id.to_string());
                 }
             }
-            AgentId::Codex => {
-                if event.get("type").and_then(Value::as_str) == Some("thread.started") {
-                    if let Some(id) = event.get("thread_id").and_then(Value::as_str) {
-                        return Some(id.to_string());
+        AgentId::Codex => {
+            if let Ok(notification) =
+                serde_json::from_value::<codex_schema::ServerNotification>(event.clone())
+            {
+                match notification {
+                    codex_schema::ServerNotification::ThreadStarted(params) => {
+                        return Some(params.thread.id);
                     }
-                }
-                if let Some(id) = event.get("thread_id").and_then(Value::as_str) {
-                    return Some(id.to_string());
-                }
-                if let Some(id) = event.get("threadId").and_then(Value::as_str) {
-                    return Some(id.to_string());
+                    codex_schema::ServerNotification::TurnStarted(params) => {
+                        return Some(params.thread_id);
+                    }
+                    codex_schema::ServerNotification::TurnCompleted(params) => {
+                        return Some(params.thread_id);
+                    }
+                    codex_schema::ServerNotification::ItemStarted(params) => {
+                        return Some(params.thread_id);
+                    }
+                    codex_schema::ServerNotification::ItemCompleted(params) => {
+                        return Some(params.thread_id);
+                    }
+                    _ => {}
                 }
             }
+            if let Some(id) = event.get("thread_id").and_then(Value::as_str) {
+                return Some(id.to_string());
+            }
+            if let Some(id) = event.get("threadId").and_then(Value::as_str) {
+                return Some(id.to_string());
+            }
+        }
             AgentId::Opencode => {
                 if let Some(id) = event.get("session_id").and_then(Value::as_str) {
                     return Some(id.to_string());
@@ -574,13 +866,25 @@ fn extract_result_text(agent: AgentId, events: &[Value]) -> Option<String> {
         AgentId::Codex => {
             let mut last = None;
             for event in events {
-                if event.get("type").and_then(Value::as_str) == Some("item.completed") {
-                    if let Some(item) = event.get("item") {
-                        if item.get("type").and_then(Value::as_str) == Some("agent_message") {
-                            if let Some(text) = item.get("text").and_then(Value::as_str) {
-                                last = Some(text.to_string());
+                if let Ok(notification) =
+                    serde_json::from_value::<codex_schema::ServerNotification>(event.clone())
+                {
+                    match notification {
+                        codex_schema::ServerNotification::ItemCompleted(params) => {
+                            if let codex_schema::ThreadItem::AgentMessage { text, .. } = params.item
+                            {
+                                last = Some(text);
                             }
                         }
+                        codex_schema::ServerNotification::TurnCompleted(params) => {
+                            for item in params.turn.items.iter().rev() {
+                                if let codex_schema::ThreadItem::AgentMessage { text, .. } = item {
+                                    last = Some(text.clone());
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 if let Some(result) = event.get("result").and_then(Value::as_str) {
