@@ -86,7 +86,7 @@ function SdkCodeHighlighted() {
   );
 }
 
-const sandboxCommand = `curl -sSL https://sandboxagent.dev/install | sh`;
+const sandboxCommand = `curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh`;
 
 const sourceCommands = `git clone https://github.com/rivet-dev/sandbox-agent
 cd sandbox-agent
@@ -123,7 +123,7 @@ export function GetStarted() {
             </div>
 
             <p className="relative z-10 mb-4 text-sm leading-relaxed text-zinc-400">
-              Import the SDK directly into your Node.js or browser application. Full type safety and streaming support.
+              Import the TypeScript SDK directly into your Node or browser application. Full type safety and streaming support.
             </p>
 
             <div className="relative z-10 mt-auto">
@@ -158,14 +158,20 @@ export function GetStarted() {
             </p>
 
             <div className="relative z-10 mt-auto">
-              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/50">
-                <div className="flex items-center justify-between border-b border-white/5 bg-white/5 px-3 py-2">
-                  <span className="text-[10px] font-medium text-zinc-500">terminal</span>
+              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <pre className="font-mono text-[11px] leading-relaxed overflow-x-auto">
+                    <code>
+                      <span className="text-zinc-500">$ </span>
+                      <span className="text-zinc-300">curl -fsSL \</span>
+                      {"\n"}
+                      <span className="text-zinc-300">{"    "}</span>
+                      <span className="text-green-400">https://releases.rivet.dev/sandbox-agent/latest/install.sh</span>
+                      <span className="text-zinc-300"> | </span>
+                      <span className="text-blue-400">sh</span>
+                    </code>
+                  </pre>
                   <CopyButton text={sandboxCommand} />
-                </div>
-                <div className="p-3 font-mono text-[11px] text-zinc-300">
-                  <span className="text-zinc-500">$ </span>
-                  <span className="text-green-400">{sandboxCommand}</span>
                 </div>
               </div>
             </div>
@@ -182,7 +188,7 @@ export function GetStarted() {
                 <GitBranch className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Build from Source</h3>
+                <h3 className="text-lg font-semibold text-white">Open Source</h3>
                 <p className="text-xs text-zinc-500">Full control</p>
               </div>
             </div>
@@ -192,14 +198,26 @@ export function GetStarted() {
             </p>
 
             <div className="relative z-10 mt-auto">
-              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/50">
-                <div className="flex items-center justify-between border-b border-white/5 bg-white/5 px-3 py-2">
-                  <span className="text-[10px] font-medium text-zinc-500">terminal</span>
+              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <pre className="font-mono text-[11px] leading-relaxed overflow-x-auto">
+                    <code>
+                      <span className="text-zinc-500">$ </span>
+                      <span className="text-blue-400">git clone</span>
+                      <span className="text-zinc-300"> </span>
+                      <span className="text-green-400">https://github.com/rivet-dev/sandbox-agent</span>
+                      {"\n"}
+                      <span className="text-zinc-500">$ </span>
+                      <span className="text-blue-400">cd</span>
+                      <span className="text-zinc-300"> sandbox-agent</span>
+                      {"\n"}
+                      <span className="text-zinc-500">$ </span>
+                      <span className="text-blue-400">cargo run</span>
+                      <span className="text-zinc-300"> -p sandbox-agent --release</span>
+                    </code>
+                  </pre>
                   <CopyButton text={sourceCommands} />
                 </div>
-                <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-zinc-300">
-                  <code>{sourceCommands}</code>
-                </pre>
               </div>
             </div>
           </div>
