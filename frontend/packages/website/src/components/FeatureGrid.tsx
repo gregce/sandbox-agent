@@ -248,8 +248,7 @@ export function FeatureGrid() {
               <h4 className="text-sm font-medium uppercase tracking-wider text-white">Universal Schema</h4>
             </div>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              Standardized session JSON to store and replay agent actions. Built-in adapters for
-              Postgres and ClickHouse.
+              Standardized session schema that covers all features of all agents. Includes tool calls, permission requests, file edits, etc.
             </p>
           </div>
 
