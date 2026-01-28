@@ -224,7 +224,7 @@ export function FeatureGrid() {
               application.
             </p>
             <div className="mt-auto relative z-10 p-3 bg-black/40 rounded-lg border border-white/5 font-mono text-xs text-green-400">
-              $ sandbox-agent serve --port 4000
+              $ sandbox-agent server
             </div>
           </div>
 
