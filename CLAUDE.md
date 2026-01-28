@@ -64,6 +64,10 @@ Universal schema guidance:
 - `sandbox-agent api sessions reject-question` ↔ `POST /v1/sessions/{sessionId}/questions/{questionId}/reject`
 - `sandbox-agent api sessions reply-permission` ↔ `POST /v1/sessions/{sessionId}/permissions/{permissionId}/reply`
 
+## Post-Release Testing
+
+After cutting a release, verify the release works correctly. Run `/project:post-release-testing` to execute the testing agent.
+
 ## Git Commits
 
 - Do not include any co-authors in commit messages (no `Co-Authored-By` lines)

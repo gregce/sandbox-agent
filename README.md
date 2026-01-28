@@ -124,7 +124,7 @@ Install the binary (fastest installation, no Node.js required):
 
 ```bash
 # Install it
-curl -fsSL https://releases.sandboxagent.dev/sandbox-agent/latest/install.sh | sh
+curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh
 # Run it
 sandbox-agent server --token "$SANDBOX_TOKEN" --host 127.0.0.1 --port 2468
 ```
