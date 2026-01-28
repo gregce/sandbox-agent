@@ -6,7 +6,11 @@ if (!process.env.E2B_API_KEY || (!process.env.OPENAI_API_KEY && !process.env.ANT
   throw new Error("E2B_API_KEY and (OPENAI_API_KEY or ANTHROPIC_API_KEY) required");
 }
 
-const sandbox = await Sandbox.create({ allowInternetAccess: true });
+const envs: Record<string, string> = {};
+if (process.env.ANTHROPIC_API_KEY) envs.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+if (process.env.OPENAI_API_KEY) envs.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+const sandbox = await Sandbox.create({ allowInternetAccess: true, envs });
 
 const run = (cmd: string) => sandbox.commands.run(cmd);
 

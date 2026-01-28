@@ -295,6 +295,7 @@ export async function runPrompt({
   let isThinking = false;
   let hasStartedOutput = false;
   let turnResolve: (() => void) | null = null;
+  let sessionEnded = false;
 
   // Stream events in background using SDK
   const processEvents = async () => {
@@ -332,9 +333,22 @@ export async function runPrompt({
           turnResolve = null;
         }
       }
+
+      // Handle session ended
+      if (event.type === "session.ended") {
+        const data = event.data as any;
+        console.log(`Agent Process Exited${data?.reason ? `: ${data.reason}` : ""}`);
+        sessionEnded = true;
+        turnResolve?.();
+        turnResolve = null;
+      }
     }
   };
-  processEvents().catch(() => {});
+  processEvents().catch((err) => {
+    if (!sessionEnded) {
+      console.error("Event stream error:", err instanceof Error ? err.message : err);
+    }
+  });
 
   // Read user input and post messages
   const rl = createInterface({ input: process.stdin, output: process.stdout });
