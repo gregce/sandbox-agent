@@ -1,6 +1,6 @@
 'use client';
 
-import { Workflow, Server, Database, Zap, Globe } from 'lucide-react';
+import { Workflow, Server, Database, Download, Globe } from 'lucide-react';
 import { FeatureIcon } from './ui/FeatureIcon';
 import { CopyButton } from './ui/CopyButton';
 
@@ -253,7 +253,7 @@ export function FeatureGrid() {
             </p>
           </div>
 
-          {/* Rust Binary - Span 8 cols */}
+          {/* Automatic Agent Installation - Span 8 cols */}
           <div className="col-span-12 md:col-span-8 group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/30 p-6 backdrop-blur-sm transition-colors duration-500 hover:bg-zinc-900/50">
             {/* Top Shine Highlight */}
             <div className="absolute left-0 right-0 top-0 z-10 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -261,35 +261,32 @@ export function FeatureGrid() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.15)_0%,transparent_50%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
             {/* Sharp Edge Highlight */}
             <div className="pointer-events-none absolute left-0 top-0 z-20 h-24 w-24 rounded-tl-2xl border-l border-t border-amber-500 opacity-0 transition-opacity duration-500 [mask-image:linear-gradient(135deg,black_0%,transparent_50%)] group-hover:opacity-100" />
-            
+
             <div className="flex flex-col gap-4 relative z-10">
               <div className="relative z-10 mb-2 flex items-center gap-3">
-                <FeatureIcon 
-                  icon={Zap} 
-                  color="text-amber-400" 
+                <FeatureIcon
+                  icon={Download}
+                  color="text-amber-400"
                   bgColor="bg-amber-500/10"
                   hoverBgColor="group-hover:bg-amber-500/20"
                   glowShadow="group-hover:shadow-[0_0_15px_rgba(245,158,11,0.5)]"
                 />
-                <h4 className="text-sm font-medium uppercase tracking-wider text-white">Rust Binary</h4>
+                <h4 className="text-sm font-medium uppercase tracking-wider text-white">Automatic Agent Installation</h4>
               </div>
               <p className="text-zinc-400 text-sm leading-relaxed">
-                Statically-linked binary. Zero dependencies. 4MB total size. Instant startup with no runtime overhead.
+                Agents are automatically installed on first use. No manual setup required.
               </p>
             </div>
             <div className="mt-auto w-full relative z-10">
-              <div className="bg-black/50 rounded-xl border border-white/5 p-4 font-mono text-xs">
-                <div className="flex items-center gap-2 mb-2 text-zinc-500 text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Quick Install
-                </div>
-                <div className="flex items-center gap-2 text-amber-400">
-                  <span className="text-zinc-500">$ </span>
-                  <span className="text-zinc-300">curl -sSL https://sandboxagent.dev/install | sh</span>
-                  <div className="ml-2 border-l border-white/10 pl-2">
-                    <CopyButton text="curl -sSL https://sandboxagent.dev/install | sh" />
-                  </div>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {['Claude Code', 'Codex', 'OpenCode', 'Amp'].map((agent) => (
+                  <span
+                    key={agent}
+                    className="px-3 py-1.5 rounded-md bg-zinc-800/50 border border-white/5 text-xs font-mono text-zinc-400"
+                  >
+                    {agent}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
