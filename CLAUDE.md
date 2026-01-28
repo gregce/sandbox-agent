@@ -28,7 +28,6 @@ Universal schema guidance:
 
 ## Spec Tracking
 
-- Update `todo.md` as work progresses; add new tasks as they arise.
 - Keep CLI subcommands in sync with every HTTP endpoint.
 - Update `CLAUDE.md` to keep CLI endpoints in sync with HTTP API changes.
 - When changing the HTTP API, update the TypeScript SDK and CLI together.

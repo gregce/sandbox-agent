@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/vercel-sandbox.ts"
+    "start": "tsx src/vercel-sandbox.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@vercel/sandbox": "latest",

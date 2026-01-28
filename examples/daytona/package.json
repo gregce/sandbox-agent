@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/daytona-fallback.ts",
-    "start:cli": "tsx src/daytona.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

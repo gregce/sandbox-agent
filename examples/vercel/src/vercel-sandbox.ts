@@ -1,105 +1,46 @@
 import { Sandbox } from "@vercel/sandbox";
-import { pathToFileURL } from "node:url";
-import {
-  ensureUrl,
-  logInspectorUrl,
-  runPrompt,
-  waitForHealth,
-} from "@sandbox-agent/example-shared";
+import { logInspectorUrl, runPrompt, waitForHealth } from "@sandbox-agent/example-shared";
 
-const INSTALL_SCRIPT = "curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh";
-const DEFAULT_PORT = 2468;
+if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+  throw new Error("OPENAI_API_KEY or ANTHROPIC_API_KEY required");
+}
 
-type VercelSandboxOptions = {
-  runtime: string;
-  ports: number[];
-  token?: string;
-  teamId?: string;
-  projectId?: string;
+const PORT = 3000;
+
+const sandbox = await Sandbox.create({
+  runtime: process.env.VERCEL_RUNTIME || "node24",
+  ports: [PORT],
+  ...(process.env.VERCEL_TOKEN && process.env.VERCEL_TEAM_ID && process.env.VERCEL_PROJECT_ID
+    ? { token: process.env.VERCEL_TOKEN, teamId: process.env.VERCEL_TEAM_ID, projectId: process.env.VERCEL_PROJECT_ID }
+    : {}),
+});
+
+const run = (cmd: string) => sandbox.runCommand({ cmd: "bash", args: ["-lc", cmd], sudo: true });
+
+console.log("Installing sandbox-agent...");
+await run("curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh");
+await run("sandbox-agent install-agent claude");
+await run("sandbox-agent install-agent codex");
+
+console.log("Starting server...");
+await sandbox.runCommand({
+  cmd: "bash",
+  args: ["-lc", `sandbox-agent server --no-token --host 0.0.0.0 --port ${PORT}`],
+  sudo: true,
+  detached: true,
+});
+
+const baseUrl = `https://${sandbox.domain(PORT)}`;
+await waitForHealth({ baseUrl });
+logInspectorUrl({ baseUrl });
+
+const cleanup = async () => {
+  console.log("Cleaning up...");
+  await sandbox.stop();
+  process.exit(0);
 };
+process.once("SIGINT", cleanup);
+process.once("SIGTERM", cleanup);
 
-export async function setupVercelSandboxAgent(): Promise<{
-  baseUrl: string;
-  token: string;
-  cleanup: () => Promise<void>;
-}> {
-  const token = process.env.SANDBOX_TOKEN || "";
-  const port = Number.parseInt(process.env.SANDBOX_PORT || "", 10) || DEFAULT_PORT;
-  const runtime = process.env.VERCEL_RUNTIME || "node24";
-
-  const createOptions: VercelSandboxOptions = {
-    runtime,
-    ports: [port],
-  };
-
-  const accessToken = process.env.VERCEL_TOKEN;
-  const teamId = process.env.VERCEL_TEAM_ID;
-  const projectId = process.env.VERCEL_PROJECT_ID;
-  if (accessToken && teamId && projectId) {
-    createOptions.token = accessToken;
-    createOptions.teamId = teamId;
-    createOptions.projectId = projectId;
-  }
-
-  const sandbox = await Sandbox.create(createOptions);
-
-  await sandbox.runCommand({
-    cmd: "bash",
-    args: ["-lc", INSTALL_SCRIPT],
-    sudo: true,
-  });
-
-  const tokenFlag = token ? "--token $SANDBOX_TOKEN" : "--no-token";
-  await sandbox.runCommand({
-    cmd: "bash",
-    args: [
-      "-lc",
-      `SANDBOX_TOKEN=${token} sandbox-agent server ${tokenFlag} --host 0.0.0.0 --port ${port}`,
-    ],
-    sudo: true,
-    detached: true,
-  });
-
-  const baseUrl = ensureUrl(sandbox.domain(port));
-  await waitForHealth({ baseUrl, token });
-  logInspectorUrl({ baseUrl, token });
-
-  const cleanup = async () => {
-    try {
-      await sandbox.stop();
-    } catch {
-      // ignore cleanup errors
-    }
-  };
-
-  return {
-    baseUrl,
-    token,
-    cleanup,
-  };
-}
-
-async function main(): Promise<void> {
-  const { baseUrl, token, cleanup } = await setupVercelSandboxAgent();
-
-  const exitHandler = async () => {
-    await cleanup();
-    process.exit(0);
-  };
-
-  process.on("SIGINT", () => {
-    void exitHandler();
-  });
-  process.on("SIGTERM", () => {
-    void exitHandler();
-  });
-
-  await runPrompt({ baseUrl, token });
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
-}
+await runPrompt({ baseUrl });
+await cleanup();

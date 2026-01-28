@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/docker.ts"
+    "start": "tsx src/docker.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dockerode": "latest",

@@ -12,7 +12,6 @@ if (
 
 const SNAPSHOT = "sandbox-agent-ready";
 const BINARY = "/usr/local/bin/sandbox-agent";
-const AGENT_BIN_DIR = "/root/.local/share/sandbox-agent/bin";
 
 const daytona = new Daytona();
 
@@ -28,18 +27,11 @@ if (!hasSnapshot) {
 			image: Image.base("ubuntu:22.04").runCommands(
 				// Install dependencies
 				"apt-get update && apt-get install -y curl ca-certificates",
-				// Download sandbox-agent
-				`curl -fsSL -o ${BINARY} https://releases.rivet.dev/sandbox-agent/latest/binaries/sandbox-agent-x86_64-unknown-linux-musl && chmod +x ${BINARY}`,
-				// Create agent bin directory
-				`mkdir -p ${AGENT_BIN_DIR}`,
-				// Install Claude: get latest version, download binary
-				`CLAUDE_VERSION=$(curl -fsSL https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest) && ` +
-				`curl -fsSL -o ${AGENT_BIN_DIR}/claude "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/$CLAUDE_VERSION/linux-x64/claude" && ` +
-				`chmod +x ${AGENT_BIN_DIR}/claude`,
-				// Install Codex: download tarball, extract binary
-				`curl -fsSL -L https://github.com/openai/codex/releases/latest/download/codex-x86_64-unknown-linux-musl.tar.gz | tar -xzf - -C /tmp && ` +
-				`find /tmp -name 'codex-x86_64-unknown-linux-musl' -exec mv {} ${AGENT_BIN_DIR}/codex \\; && ` +
-				`chmod +x ${AGENT_BIN_DIR}/codex`,
+				// Install sandbox-agent via install script
+				"curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh",
+				// Pre-install agents using sandbox-agent CLI
+				"sandbox-agent install-agent claude",
+				"sandbox-agent install-agent codex",
 			),
 		},
 		{ onLogs: (log) => console.log(`  ${log}`) },

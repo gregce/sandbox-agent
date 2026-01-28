@@ -1,4 +1,4 @@
-import { createInterface } from "node:readline";
+import { createInterface } from "node:readline/promises";
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -277,25 +277,13 @@ export async function runPrompt({
   agentId?: string;
 }): Promise<void> {
   const sessionId = await createSession({ baseUrl, token, extraHeaders, agentId });
+  console.log(`Session ${sessionId} ready. Press Ctrl+C to quit.`);
 
-  console.log(`Session ${sessionId} ready. Type /exit to quit.`);
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
 
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: "> ",
-  });
-
-  const handleLine = async (line: string) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      rl.prompt();
-      return;
-    }
-    if (trimmed === "/exit") {
-      rl.close();
-      return;
-    }
+  while (true) {
+    const line = await rl.question("> ");
+    if (!line.trim()) continue;
 
     try {
       await sendMessageStream({
@@ -303,24 +291,12 @@ export async function runPrompt({
         token,
         extraHeaders,
         sessionId,
-        message: trimmed,
+        message: line.trim(),
         onText: (text) => process.stdout.write(text),
       });
       process.stdout.write("\n");
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
     }
-
-    rl.prompt();
-  };
-
-  rl.on("line", (line) => {
-    void handleLine(line);
-  });
-
-  rl.on("close", () => {
-    process.exit(0);
-  });
-
-  rl.prompt();
+  }
 }

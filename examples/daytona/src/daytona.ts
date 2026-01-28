@@ -27,11 +27,11 @@ if (!hasSnapshot) {
 			image: Image.base("ubuntu:22.04").runCommands(
 				// Install dependencies
 				"apt-get update && apt-get install -y curl ca-certificates",
-				// Download sandbox-agent
-				`curl -fsSL -o ${BINARY} https://releases.rivet.dev/sandbox-agent/latest/binaries/sandbox-agent-x86_64-unknown-linux-musl && chmod +x ${BINARY}`,
+				// Install sandbox-agent via install script
+				"curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh",
 				// Pre-install agents using sandbox-agent CLI
-				`${BINARY} install-agent claude`,
-				`${BINARY} install-agent codex`,
+				"sandbox-agent install-agent claude",
+				"sandbox-agent install-agent codex",
 			),
 		},
 		{ onLogs: (log) => console.log(`  ${log}`) },

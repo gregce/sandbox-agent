@@ -1,132 +1,58 @@
 import Docker from "dockerode";
-import { pathToFileURL } from "node:url";
-import {
-  ensureUrl,
-  logInspectorUrl,
-  runPrompt,
-  waitForHealth,
-} from "@sandbox-agent/example-shared";
+import { logInspectorUrl, runPrompt, waitForHealth } from "@sandbox-agent/example-shared";
 
-const INSTALL_SCRIPT = "curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh";
-const DEFAULT_IMAGE = "debian:bookworm-slim";
-const DEFAULT_PORT = 2468;
+if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+  throw new Error("OPENAI_API_KEY or ANTHROPIC_API_KEY required");
+}
 
-async function pullImage(docker: Docker, image: string): Promise<void> {
+const IMAGE = "debian:bookworm-slim";
+const PORT = 3000;
+
+const docker = new Docker({ socketPath: "/var/run/docker.sock" });
+
+// Pull image if needed
+try {
+  await docker.getImage(IMAGE).inspect();
+} catch {
+  console.log(`Pulling ${IMAGE}...`);
   await new Promise<void>((resolve, reject) => {
-    docker.pull(image, (error, stream) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      docker.modem.followProgress(stream, (progressError) => {
-        if (progressError) {
-          reject(progressError);
-        } else {
-          resolve();
-        }
-      });
+    docker.pull(IMAGE, (err: Error | null, stream: NodeJS.ReadableStream) => {
+      if (err) return reject(err);
+      docker.modem.followProgress(stream, (err: Error | null) => err ? reject(err) : resolve());
     });
   });
 }
 
-async function ensureImage(docker: Docker, image: string): Promise<void> {
-  try {
-    await docker.getImage(image).inspect();
-  } catch {
-    await pullImage(docker, image);
-  }
-}
+console.log("Starting container...");
+const container = await docker.createContainer({
+  Image: IMAGE,
+  Cmd: ["bash", "-lc", [
+    "apt-get update && apt-get install -y curl ca-certificates",
+    "curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh",
+    "sandbox-agent install-agent claude",
+    "sandbox-agent install-agent codex",
+    `sandbox-agent server --no-token --host 0.0.0.0 --port ${PORT}`,
+  ].join(" && ")],
+  ExposedPorts: { [`${PORT}/tcp`]: {} },
+  HostConfig: {
+    AutoRemove: true,
+    PortBindings: { [`${PORT}/tcp`]: [{ HostPort: `${PORT}` }] },
+  },
+});
+await container.start();
 
-export async function setupDockerSandboxAgent(): Promise<{
-  baseUrl: string;
-  token: string;
-  cleanup: () => Promise<void>;
-}> {
-  const token = process.env.SANDBOX_TOKEN || "";
-  const port = Number.parseInt(process.env.SANDBOX_PORT || "", 10) || DEFAULT_PORT;
-  const hostPort = Number.parseInt(process.env.SANDBOX_HOST_PORT || "", 10) || port;
-  const image = process.env.DOCKER_IMAGE || DEFAULT_IMAGE;
-  const containerName = process.env.DOCKER_CONTAINER_NAME;
-  const socketPath = process.env.DOCKER_SOCKET || "/var/run/docker.sock";
+const baseUrl = `http://127.0.0.1:${PORT}`;
+await waitForHealth({ baseUrl });
+logInspectorUrl({ baseUrl });
 
-  const docker = new Docker({ socketPath });
-  await ensureImage(docker, image);
+const cleanup = async () => {
+  console.log("Cleaning up...");
+  try { await container.stop({ t: 5 }); } catch {}
+  try { await container.remove({ force: true }); } catch {}
+  process.exit(0);
+};
+process.once("SIGINT", cleanup);
+process.once("SIGTERM", cleanup);
 
-  const tokenFlag = token ? "--token $SANDBOX_TOKEN" : "--no-token";
-  const command = [
-    "bash",
-    "-lc",
-    [
-      "apt-get update",
-      "apt-get install -y curl ca-certificates",
-      INSTALL_SCRIPT,
-      `sandbox-agent server ${tokenFlag} --host 0.0.0.0 --port ${port}`,
-    ].join(" && "),
-  ];
-
-  const container = await docker.createContainer({
-    Image: image,
-    Cmd: command,
-    Env: token ? [`SANDBOX_TOKEN=${token}`] : [],
-    ExposedPorts: {
-      [`${port}/tcp`]: {},
-    },
-    HostConfig: {
-      AutoRemove: true,
-      PortBindings: {
-        [`${port}/tcp`]: [{ HostPort: `${hostPort}` }],
-      },
-    },
-    ...(containerName ? { name: containerName } : {}),
-  });
-
-  await container.start();
-
-  const baseUrl = ensureUrl(`http://127.0.0.1:${hostPort}`);
-  await waitForHealth({ baseUrl, token });
-  logInspectorUrl({ baseUrl, token });
-
-  const cleanup = async () => {
-    try {
-      await container.stop({ t: 5 });
-    } catch {
-      // ignore stop errors
-    }
-    try {
-      await container.remove({ force: true });
-    } catch {
-      // ignore remove errors
-    }
-  };
-
-  return {
-    baseUrl,
-    token,
-    cleanup,
-  };
-}
-
-async function main(): Promise<void> {
-  const { baseUrl, token, cleanup } = await setupDockerSandboxAgent();
-
-  const exitHandler = async () => {
-    await cleanup();
-    process.exit(0);
-  };
-
-  process.on("SIGINT", () => {
-    void exitHandler();
-  });
-  process.on("SIGTERM", () => {
-    void exitHandler();
-  });
-
-  await runPrompt({ baseUrl, token });
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
-}
+await runPrompt({ baseUrl });
+await cleanup();

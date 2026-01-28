@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/e2b.ts"
+    "start": "tsx src/e2b.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@e2b/code-interpreter": "latest",

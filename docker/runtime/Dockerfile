@@ -3,29 +3,102 @@
 # Build stage - compile the binary
 FROM rust:1.88.0 AS builder
 
+ARG TARGETARCH
+
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     musl-tools \
     musl-dev \
+    llvm-14-dev \
+    libclang-14-dev \
+    clang-14 \
+    libssl-dev \
     pkg-config \
     ca-certificates \
-    git && \
-    apt-get clean && \
+    g++ \
+    g++-multilib \
+    git \
+    curl \
+    wget && \
     rm -rf /var/lib/apt/lists/*
 
-RUN rustup target add x86_64-unknown-linux-musl
+# Install musl cross toolchain based on architecture
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        wget -q https://github.com/cross-tools/musl-cross/releases/latest/download/x86_64-unknown-linux-musl.tar.xz && \
+        tar -xf x86_64-unknown-linux-musl.tar.xz -C /opt/ && \
+        rm x86_64-unknown-linux-musl.tar.xz && \
+        rustup target add x86_64-unknown-linux-musl; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        wget -q https://github.com/cross-tools/musl-cross/releases/latest/download/aarch64-unknown-linux-musl.tar.xz && \
+        tar -xf aarch64-unknown-linux-musl.tar.xz -C /opt/ && \
+        rm aarch64-unknown-linux-musl.tar.xz && \
+        rustup target add aarch64-unknown-linux-musl; \
+    fi
+
+# Set environment variables based on architecture
+ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib \
+    CLANG_PATH=/usr/bin/clang-14 \
+    CARGO_INCREMENTAL=0 \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+# Build OpenSSL for musl target
+ENV SSL_VER=1.1.1w
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        export PATH="/opt/x86_64-unknown-linux-musl/bin:$PATH" && \
+        wget https://www.openssl.org/source/openssl-$SSL_VER.tar.gz && \
+        tar -xzf openssl-$SSL_VER.tar.gz && \
+        cd openssl-$SSL_VER && \
+        ./Configure no-shared no-async --prefix=/musl --openssldir=/musl/ssl linux-x86_64 && \
+        make -j$(nproc) && \
+        make install_sw && \
+        cd .. && \
+        rm -rf openssl-$SSL_VER*; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        export PATH="/opt/aarch64-unknown-linux-musl/bin:$PATH" && \
+        wget https://www.openssl.org/source/openssl-$SSL_VER.tar.gz && \
+        tar -xzf openssl-$SSL_VER.tar.gz && \
+        cd openssl-$SSL_VER && \
+        ./Configure no-shared no-async --prefix=/musl --openssldir=/musl/ssl linux-aarch64 && \
+        make -j$(nproc) && \
+        make install_sw && \
+        cd .. && \
+        rm -rf openssl-$SSL_VER*; \
+    fi
+
+# Set OpenSSL environment variables
+ENV OPENSSL_DIR=/musl \
+    OPENSSL_INCLUDE_DIR=/musl/include \
+    OPENSSL_LIB_DIR=/musl/lib \
+    PKG_CONFIG_ALLOW_CROSS=1
 
 WORKDIR /build
 COPY . .
 
-# Build static binary
+# Build static binary based on architecture
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
-    SANDBOX_AGENT_SKIP_INSPECTOR=1 \
-    RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo build -p sandbox-agent --release --target x86_64-unknown-linux-musl && \
-    cp target/x86_64-unknown-linux-musl/release/sandbox-agent /sandbox-agent
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export PATH="/opt/x86_64-unknown-linux-musl/bin:$PATH" && \
+        export CC_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-gcc && \
+        export CXX_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-g++ && \
+        export AR_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-ar && \
+        export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-unknown-linux-musl-gcc && \
+        export RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-static-libgcc" && \
+        SANDBOX_AGENT_SKIP_INSPECTOR=1 cargo build -p sandbox-agent --release --target x86_64-unknown-linux-musl && \
+        cp target/x86_64-unknown-linux-musl/release/sandbox-agent /sandbox-agent; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        export PATH="/opt/aarch64-unknown-linux-musl/bin:$PATH" && \
+        export CC_aarch64_unknown_linux_musl=aarch64-unknown-linux-musl-gcc && \
+        export CXX_aarch64_unknown_linux_musl=aarch64-unknown-linux-musl-g++ && \
+        export AR_aarch64_unknown_linux_musl=aarch64-unknown-linux-musl-ar && \
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-unknown-linux-musl-gcc && \
+        export RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-static-libgcc" && \
+        SANDBOX_AGENT_SKIP_INSPECTOR=1 cargo build -p sandbox-agent --release --target aarch64-unknown-linux-musl && \
+        cp target/aarch64-unknown-linux-musl/release/sandbox-agent /sandbox-agent; \
+    fi
 
 # Runtime stage - minimal image
 FROM debian:bookworm-slim
