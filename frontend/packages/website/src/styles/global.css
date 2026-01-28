@@ -12,6 +12,13 @@
     @apply bg-accent/30 text-white;
   }
 
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+  }
+
+  /* Webkit scrollbar */
   ::-webkit-scrollbar {
     @apply w-2 h-2;
   }
@@ -33,11 +40,26 @@
   }
 
   /* Code block scrollbars */
-  pre::-webkit-scrollbar {
-    @apply h-1.5;
+  pre, code, .overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #52525b #18181b;
   }
 
-  pre::-webkit-scrollbar-thumb {
+  pre::-webkit-scrollbar,
+  code::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    @apply h-2;
+  }
+
+  pre::-webkit-scrollbar-track,
+  code::-webkit-scrollbar-track,
+  .overflow-x-auto::-webkit-scrollbar-track {
+    @apply bg-zinc-900;
+  }
+
+  pre::-webkit-scrollbar-thumb,
+  code::-webkit-scrollbar-thumb,
+  .overflow-x-auto::-webkit-scrollbar-thumb {
     @apply bg-zinc-600 rounded-full;
   }
 }
