@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { Navigation } from '../components/Navigation';
+import { Hero } from '../components/Hero';
+import { FeatureGrid } from '../components/FeatureGrid';
+import { GetStarted } from '../components/GetStarted';
+import { FAQ } from '../components/FAQ';
+import { Footer } from '../components/Footer';
+---
+
+<Layout title="Coding Agent SDK - Universal SDK for Coding Agents">
+  <div class="min-h-screen bg-black text-white selection:bg-accent/30">
+    <Navigation client:load />
+    <main>
+      <Hero client:load />
+      <FeatureGrid client:visible />
+      <GetStarted client:visible />
+      <FAQ client:visible />
+    </main>
+    <Footer client:visible />
+  </div>
+</Layout>
