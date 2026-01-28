@@ -1,6 +1,6 @@
 'use client';
 
-import { Code, Cloud, GitBranch } from 'lucide-react';
+import { Code, Server, GitBranch } from 'lucide-react';
 import { CopyButton } from './ui/CopyButton';
 
 const sdkCodeRaw = `import { SandboxAgent } from "sandbox-agent";
@@ -145,16 +145,16 @@ export function GetStarted() {
 
             <div className="relative z-10 mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 text-green-400 transition-all duration-300 group-hover:bg-green-500/20 group-hover:shadow-[0_0_15px_rgba(34,197,94,0.5)]">
-                <Cloud className="h-5 w-5" />
+                <Server className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Cloud Sandbox</h3>
-                <p className="text-xs text-zinc-500">Run in isolated environment</p>
+                <h3 className="text-lg font-semibold text-white">HTTP API</h3>
+                <p className="text-xs text-zinc-500">Run as a server</p>
               </div>
             </div>
 
             <p className="relative z-10 mb-4 text-sm leading-relaxed text-zinc-400">
-              Spin up a sandboxed environment with E2B, Daytona, or Vercel. Secure isolation with full network access.
+              Run as an HTTP server and connect from any language. Deploy to E2B, Daytona, Vercel, or your own infrastructure.
             </p>
 
             <div className="relative z-10 mt-auto">
