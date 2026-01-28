@@ -39,7 +39,7 @@ export function Hero() {
               Coding Agents
             </h1>
             <p className="mt-8 text-xl text-zinc-400 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-              One SDK to control Claude Code, Codex, OpenCode, and Amp. Unified events, session management, and human-in-the-loop — swap agents with zero refactoring.
+              One SDK to control Claude Code, Codex, OpenCode, and Amp. Unified events, session management, and human-in-the-loop. Swap agents with zero refactoring.
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
