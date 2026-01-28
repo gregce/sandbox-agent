@@ -836,6 +836,9 @@ export default function App() {
           onSendMessage={sendMessage}
           onKeyDown={handleKeyDown}
           onCreateSession={createNewSession}
+          availableAgents={availableAgents}
+          agentsLoading={agentsLoading}
+          agentsError={agentsError}
           messagesEndRef={messagesEndRef}
           agentLabel={agentLabel}
           agentMode={agentMode}

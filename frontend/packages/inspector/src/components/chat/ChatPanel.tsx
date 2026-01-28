@@ -1,4 +1,5 @@
 import { MessageSquare, PauseCircle, PlayCircle, Plus, Terminal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentModeInfo, PermissionEventData, QuestionEventData } from "sandbox-agent";
 import ApprovalsTab from "../debug/ApprovalsTab";
 import ChatInput from "./ChatInput";
@@ -17,6 +18,9 @@ const ChatPanel = ({
   onSendMessage,
   onKeyDown,
   onCreateSession,
+  availableAgents,
+  agentsLoading,
+  agentsError,
   messagesEndRef,
   agentLabel,
   agentMode,
@@ -53,7 +57,10 @@ const ChatPanel = ({
   onMessageChange: (value: string) => void;
   onSendMessage: () => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onCreateSession: () => void;
+  onCreateSession: (agentId: string) => void;
+  availableAgents: string[];
+  agentsLoading: boolean;
+  agentsError: string | null;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   agentLabel: string;
   agentMode: string;
@@ -81,6 +88,29 @@ const ChatPanel = ({
   onRejectQuestion: (requestId: string) => void;
   onReplyPermission: (requestId: string, reply: "once" | "always" | "reject") => void;
 }) => {
+  const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showAgentMenu) return;
+    const handler = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(event.target as Node)) {
+        setShowAgentMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAgentMenu]);
+
+  const agentLabels: Record<string, string> = {
+    claude: "Claude Code",
+    codex: "Codex",
+    opencode: "OpenCode",
+    amp: "Amp",
+    mock: "Mock"
+  };
+
   const hasApprovals = questionRequests.length > 0 || permissionRequests.length > 0;
   const isTurnMode = streamMode === "turn";
   const isStreaming = isTurnMode ? turnStreaming : polling;
@@ -141,10 +171,37 @@ const ChatPanel = ({
             <MessageSquare className="empty-state-icon" />
             <div className="empty-state-title">No Session Selected</div>
             <p className="empty-state-text">Create a new session to start chatting with an agent.</p>
-            <button className="button primary" onClick={onCreateSession}>
-              <Plus className="button-icon" />
-              Create Session
-            </button>
+            <div className="empty-state-menu-wrapper" ref={menuRef}>
+              <button
+                className="button primary"
+                onClick={() => setShowAgentMenu((value) => !value)}
+              >
+                <Plus className="button-icon" />
+                Create Session
+              </button>
+              {showAgentMenu && (
+                <div className="empty-state-menu">
+                  {agentsLoading && <div className="sidebar-add-status">Loading agents...</div>}
+                  {agentsError && <div className="sidebar-add-status error">{agentsError}</div>}
+                  {!agentsLoading && !agentsError && availableAgents.length === 0 && (
+                    <div className="sidebar-add-status">No agents available.</div>
+                  )}
+                  {!agentsLoading && !agentsError &&
+                    availableAgents.map((id) => (
+                      <button
+                        key={id}
+                        className="sidebar-add-option"
+                        onClick={() => {
+                          onCreateSession(id);
+                          setShowAgentMenu(false);
+                        }}
+                      >
+                        {agentLabels[id] ?? id}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         ) : transcriptEntries.length === 0 && !sessionError ? (
           <div className="empty-state">

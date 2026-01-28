@@ -1,0 +1,12 @@
+---
+source: server/packages/sandbox-agent/tests/http/agent_endpoints.rs
+expression: "json!({\n    \"status\": status.as_u16(), \"payload\": normalize_agent_list(&payload),\n})"
+---
+payload:
+  agents:
+    - id: amp
+    - id: claude
+    - id: codex
+    - id: mock
+    - id: opencode
+status: 200

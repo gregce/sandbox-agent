@@ -678,6 +678,28 @@
         width: auto;
       }
 
+      .empty-state-menu-wrapper {
+        position: relative;
+      }
+
+      .empty-state-menu {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 4px;
+        min-width: 160px;
+        background: var(--surface);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        z-index: 60;
+      }
+
       .message {
         display: flex;
         gap: 10px;
