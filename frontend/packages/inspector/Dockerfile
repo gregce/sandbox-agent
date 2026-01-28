@@ -23,12 +23,12 @@ COPY frontend/packages/inspector ./frontend/packages/inspector
 RUN cd frontend/packages/inspector && pnpm exec vite build
 
 FROM caddy:alpine
-COPY --from=build /app/frontend/packages/inspector/dist /srv
+COPY --from=build /app/frontend/packages/inspector/dist /srv/ui
 RUN cat > /etc/caddy/Caddyfile <<'EOF'
 :80 {
 	root * /srv
 	file_server
-	try_files {path} /index.html
+	try_files {path} /ui/index.html
 }
 EOF
 EXPOSE 80
