@@ -15,7 +15,7 @@ async function main() {
   }
 
   await fsp.rm(OUTPUT_ROOT, { recursive: true, force: true });
-  await fsp.mkdir(path.join(OUTPUT_ROOT, "reference"), { recursive: true });
+  await fsp.mkdir(path.join(OUTPUT_ROOT, "references"), { recursive: true });
 
   const docFiles = await listDocFiles(DOCS_ROOT);
   const references = [];
@@ -33,7 +33,7 @@ async function main() {
     const markdown = convertDocToMarkdown(body);
 
     const referenceRelPath = `${stripExtension(relPath)}.md`;
-    const outputPath = path.join(OUTPUT_ROOT, "reference", referenceRelPath);
+    const outputPath = path.join(OUTPUT_ROOT, "references", referenceRelPath);
     await fsp.mkdir(path.dirname(outputPath), { recursive: true });
 
     const referenceFile = buildReferenceFile({
@@ -51,7 +51,7 @@ async function main() {
       title,
       description,
       canonicalUrl,
-      referencePath: `reference/${referenceRelPath}`,
+      referencePath: `references/${referenceRelPath}`,
     });
   }
 
