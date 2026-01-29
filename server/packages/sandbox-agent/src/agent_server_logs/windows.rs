@@ -2,6 +2,7 @@ use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 
 use sandbox_agent_error::SandboxError;
+use sandbox_agent_universal_agent_schema::StderrOutput;
 use time::{Duration, OffsetDateTime};
 
 const LOG_RETENTION_DAYS: i64 = 7;
@@ -75,5 +76,11 @@ impl AgentServerLogs {
         }
 
         Ok(())
+    }
+
+    /// Read stderr output from the agent's log file.
+    /// Windows stub - returns None as stderr capture is not implemented.
+    pub fn read_stderr(&self) -> Option<StderrOutput> {
+        None
     }
 }
