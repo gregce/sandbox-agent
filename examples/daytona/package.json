@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/daytona.ts",
+    "start:snapshot": "tsx src/daytona-with-snapshot.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

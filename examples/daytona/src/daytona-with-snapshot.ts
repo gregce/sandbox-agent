@@ -1,4 +1,4 @@
-import { Daytona } from "@daytonaio/sdk";
+import { Daytona, Image } from "@daytonaio/sdk";
 import { logInspectorUrl, runPrompt } from "@sandbox-agent/example-shared";
 
 const daytona = new Daytona();
@@ -9,15 +9,14 @@ if (process.env.ANTHROPIC_API_KEY)
 if (process.env.OPENAI_API_KEY)
 	envVars.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-// Use default image and install sandbox-agent at runtime (faster startup, no snapshot build)
-console.log("Creating Daytona sandbox...");
-const sandbox = await daytona.create({ envVars, autoStopInterval: 0 });
-
-// Install sandbox-agent and start server
-console.log("Installing sandbox-agent...");
-await sandbox.process.executeCommand(
+// Build a custom image with sandbox-agent pre-installed (slower first run, faster subsequent runs)
+const image = Image.base("ubuntu:22.04").runCommands(
+	"apt-get update && apt-get install -y curl ca-certificates",
 	"curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh",
 );
+
+console.log("Creating Daytona sandbox (first run builds the base image and may take a few minutes, subsequent runs are fast)...");
+const sandbox = await daytona.create({ envVars, image, autoStopInterval: 0 }, { timeout: 180 });
 
 await sandbox.process.executeCommand(
 	"nohup sandbox-agent server --no-token --host 0.0.0.0 --port 3000 >/tmp/sandbox-agent.log 2>&1 &",
