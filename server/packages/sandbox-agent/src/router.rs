@@ -182,6 +182,7 @@ pub async fn shutdown_servers(state: &Arc<AppState>) {
             SessionEndedData,
             SessionEndReason,
             TerminatedBy,
+            StderrOutput,
             ItemEventData,
             ItemDeltaData,
             UniversalItem,
