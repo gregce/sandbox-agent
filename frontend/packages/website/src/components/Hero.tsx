@@ -152,7 +152,7 @@ function UniversalAPIDiagram() {
 
 const CopyInstallButton = () => {
   const [copied, setCopied] = useState(false);
-  const installCommand = 'SandboxAgent.connect({ endpoint: "..." })';
+  const installCommand = 'npx skills add https://sandboxagent.dev/docs';
 
   const handleCopy = async () => {
     try {

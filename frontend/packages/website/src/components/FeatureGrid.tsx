@@ -84,10 +84,10 @@ export function FeatureGrid() {
                 hoverBgColor="group-hover:bg-purple-500/20"
                 glowShadow="group-hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
               />
-              <h4 className="text-sm font-medium uppercase tracking-wider text-white">Handling Permissions</h4>
+              <h4 className="text-sm font-medium uppercase tracking-wider text-white">Universal Schema</h4>
             </div>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              Approve or deny tool executions remotely over HTTP. Human-in-the-loop flows work seamlessly across the network.
+              Standardized session schema that covers all features of all agents. Includes tool calls, permission requests, file edits, etc. Approve or deny tool executions remotely over HTTP.
             </p>
           </div>
 
@@ -108,7 +108,7 @@ export function FeatureGrid() {
                 hoverBgColor="group-hover:bg-amber-500/20"
                 glowShadow="group-hover:shadow-[0_0_15px_rgba(245,158,11,0.5)]"
               />
-              <h4 className="text-sm font-medium uppercase tracking-wider text-white">Managing Sessions</h4>
+              <h4 className="text-sm font-medium uppercase tracking-wider text-white">Automatic Agent Installation</h4>
             </div>
             <p className="text-zinc-400 text-sm leading-relaxed">
               Create sessions, send messages, persist transcripts. Full session lifecycle management over HTTP.
@@ -134,7 +134,7 @@ export function FeatureGrid() {
               />
               <h4 className="text-sm font-medium uppercase tracking-wider text-white">Runs Inside Any Sandbox</h4>
             </div>
-            <p className="text-zinc-500 text-sm leading-relaxed">
+            <p className="text-zinc-400 text-sm leading-relaxed">
               Lightweight static binary. One curl command to install inside E2B, Daytona, Vercel Sandboxes, or Docker.
             </p>
           </div>
