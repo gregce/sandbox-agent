@@ -152,7 +152,7 @@ function UniversalAPIDiagram() {
 
 const CopyInstallButton = () => {
   const [copied, setCopied] = useState(false);
-  const installCommand = 'npx skills add https://sandboxagent.dev/docs';
+  const installCommand = 'npx skills add rivet-dev/skills -s sandbox-agent';
 
   const handleCopy = async () => {
     try {

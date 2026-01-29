@@ -37,7 +37,7 @@ jobs:
           node-version: "20"
 
       - name: Install sandbox-agent skill
-        run: npx skills add https://sandboxagent.dev/docs --yes
+        run: npx skills add rivet-dev/skills -s sandbox-agent --yes
 
       - name: Run Claude Code Review
         id: claude-review

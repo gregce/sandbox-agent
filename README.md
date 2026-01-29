@@ -66,7 +66,7 @@ The Sandbox Agent acts as a universal adapter between your client application an
 Install skill with:
 
 ```
-npx skills add https://sandboxagent.dev/docs
+npx skills add rivet-dev/skills -s sandbox-agent
 ```
 
 ### SDK
