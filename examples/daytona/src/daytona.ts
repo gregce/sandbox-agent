@@ -4,15 +4,18 @@ import { logInspectorUrl, runPrompt } from "@sandbox-agent/example-shared";
 const daytona = new Daytona();
 
 const envVars: Record<string, string> = {};
-if (process.env.ANTHROPIC_API_KEY) envVars.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-if (process.env.OPENAI_API_KEY) envVars.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+if (process.env.ANTHROPIC_API_KEY)
+	envVars.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+if (process.env.OPENAI_API_KEY)
+	envVars.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const image = Image.base("ubuntu:22.04").runCommands(
 	"apt-get update && apt-get install -y curl ca-certificates",
-	"curl -fsSL https://releases.rivet.dev/sandbox-agent/latest/install.sh | sh",
+	"curl -fsSL https://releases.rivet.dev/sandbox-agent/0.1.3/install.sh | sh",
 );
 
-const sandbox = await daytona.create({ envVars, image });
+console.log("Creating Daytona sandbox (first run builds the base image and may take a few minutes, subsequent runs are fast)...");
+const sandbox = await daytona.create({ envVars, image, autoStopInterval: 0 }, { timeout: 180 });
 
 await sandbox.process.executeCommand(
 	"nohup sandbox-agent server --no-token --host 0.0.0.0 --port 3000 >/tmp/sandbox-agent.log 2>&1 &",
@@ -28,8 +31,7 @@ const cleanup = async () => {
 process.once("SIGINT", cleanup);
 process.once("SIGTERM", cleanup);
 
-// When running as root in a container, Claude requires interactive permission prompts
-// (bypass mode is not supported). Set autoApprovePermissions: true to auto-approve,
+// When running as root in a container, Claude requires interactive permission prompts (bypass mode is not supported). Set autoApprovePermissions: true to auto-approve,
 // or leave false for interactive prompts.
 await runPrompt({
 	baseUrl,
