@@ -2,42 +2,62 @@
   <img src=".github/media/banner.png" alt="Sandbox Agent SDK" />
 </p>
 
+<h3 align="center">Run Coding Agents in Sandboxes. Control Them Over HTTP.</h3>
+
 <p align="center">
-  Universal API for automatic coding agents in sandboxes. Supports Claude Code, Codex, OpenCode, and Amp.
+  A server that runs inside your sandbox. Your app connects remotely to control Claude Code, Codex, OpenCode, or Amp — streaming events, handling permissions, managing sessions.
 </p>
 
+<p align="center">
+  <a href="https://sandboxagent.dev/docs">Documentation</a> — <a href="https://sandboxagent.dev/docs/api-reference">API Reference</a> — <a href="https://rivet.dev/discord">Discord</a>
+</p>
 
-- **Any coding agent**: Universal API to interact with all agents with full feature coverage
-- **Server or SDK mode**: Run as an HTTP server or with the TypeScript SDK
-- **Universal session schema**: [Session transcript schema](https://sandboxagent.dev/docs/session-transcript-schema) to store agent transcripts
-- **Supports your sandbox provider**: Daytona, E2B, Vercel Sandboxes, and more
-- **Lightweight, portable Rust binary**: Install anywhere with 1 curl command
-- **Automatic agent installation**: Agents are installed on-demand when first used
-- **OpenAPI spec**: Well documented and easy to integrate
+## Why Sandbox Agent?
 
-[Documentation](https://sandboxagent.dev/docs) — [Discord](https://rivet.dev/discord)
+Running coding agents remotely is hard. Existing SDKs assume local execution, SSH breaks TTY handling and streaming, and every agent has a different API. Building from scratch means reimplementing everything for each coding agent.
 
-Want support for another agent or sandbox provider? [Open an issue](https://github.com/rivet-dev/sandbox-agent/issues/new) to request it.
+Sandbox Agent solves three problems:
+
+1. **Coding agents need sandboxes** — You can't let AI execute arbitrary code on your production servers. Coding agents need isolated environments, but existing SDKs assume local execution. Sandbox Agent is a server that runs inside the sandbox and exposes HTTP/SSE.
+
+2. **Every coding agent is different** — Claude Code, Codex, OpenCode, and Amp each have proprietary APIs, event formats, and behaviors. Swapping agents means rewriting your integration. Sandbox Agent provides one HTTP API — write your code once, swap agents with a config change.
+
+3. **Sessions are ephemeral** — Agent transcripts live in the sandbox. When the process ends, you lose everything. Sandbox Agent streams events in a universal schema to your storage. Persist to Postgres, ClickHouse, or [Rivet](https://rivet.dev). Replay later, audit everything.
+
+## Features
+
+- **Universal Agent API**: Single interface to control Claude Code, Codex, OpenCode, and Amp with full feature coverage
+- **Streaming Events**: Real-time SSE stream of everything the agent does — tool calls, permission requests, file edits, and more
+- **Universal Session Schema**: [Standardized schema](https://sandboxagent.dev/docs/session-transcript-schema) that normalizes all agent event formats for storage and replay
+- **Human-in-the-Loop**: Approve or deny tool executions and answer agent questions remotely over HTTP
+- **Automatic Agent Installation**: Agents are installed on-demand when first used — no setup required
+- **Runs Inside Any Sandbox**: Lightweight static Rust binary. One curl command to install inside E2B, Daytona, Vercel Sandboxes, or Docker
+- **Server or SDK Mode**: Run as an HTTP server or embed with the TypeScript SDK
+- **OpenAPI Spec**: [Well documented](https://sandboxagent.dev/docs/api-reference) and easy to integrate from any language
 
 ## Architecture
 
 ![Agent Architecture Diagram](./.github/media/agent-diagram.gif)
 
-The Sandbox Agent acts as a universal adapter between your client application and various coding agents (Claude Code, Codex, OpenCode, Amp). Each agent has its own adapter (e.g., `claude_adapter.rs`) that handles the translation between the universal API and the agent-specific interface.
+The Sandbox Agent acts as a universal adapter between your client application and various coding agents. Each agent has its own adapter that handles the translation between the universal API and the agent-specific interface.
 
 - **Embedded Mode**: Runs agents locally as subprocesses
 - **Server Mode**: Runs as HTTP server from any sandbox provider
 
-[Documentation](https://sandboxagent.dev/docs/architecture)
+[Architecture documentation](https://sandboxagent.dev/docs)
 
 ## Components
 
-- Server: Rust daemon (`sandbox-agent server`) exposing the HTTP + SSE API.
-- SDK: TypeScript client with embedded and server modes.
-- Inspector: `https://inspect.sandboxagent.dev` for browsing sessions and events.
-- CLI: `sandbox-agent` (same binary, plus npm wrapper) mirrors the HTTP endpoints.
+| Component | Description |
+|-----------|-------------|
+| **Server** | Rust daemon (`sandbox-agent server`) exposing the HTTP + SSE API |
+| **SDK** | TypeScript client with embedded and server modes |
+| **Inspector** | [inspect.sandboxagent.dev](https://inspect.sandboxagent.dev) for browsing sessions and events |
+| **CLI** | `sandbox-agent` (same binary, plus npm wrapper) mirrors the HTTP endpoints |
 
-## Quickstart
+## Get Started
+
+Choose the installation method that works best for your use case.
 
 ### Skill
 
@@ -47,7 +67,9 @@ Install skill with:
 npx skills add rivet-dev/skills -s sandbox-agent
 ```
 
-### SDK
+### TypeScript SDK
+
+Import the SDK directly into your Node or browser application. Full type safety and streaming support.
 
 **Install**
 
@@ -94,11 +116,11 @@ for await (const event of client.streamEvents("demo", { offset: 0 })) {
 }
 ```
 
-[Documentation](https://sandboxagent.dev/docs/sdks/typescript) — [Building a Chat UI](https://sandboxagent.dev/docs/building-chat-ui) — [Managing Sessions](https://sandboxagent.dev/docs/manage-sessions)
+[SDK documentation](https://sandboxagent.dev/docs/sdks/typescript) — [Building a Chat UI](https://sandboxagent.dev/docs/building-chat-ui) — [Managing Sessions](https://sandboxagent.dev/docs/manage-sessions)
 
-### Server
+### HTTP Server
 
-Install the binary (fastest installation, no Node.js required):
+Run as an HTTP server and connect from any language. Deploy to E2B, Daytona, Vercel, or your own infrastructure.
 
 ```bash
 # Install it
@@ -122,7 +144,7 @@ To disable auth locally:
 sandbox-agent server --no-token --host 127.0.0.1 --port 2468
 ```
 
-[Documentation](https://sandboxagent.dev/docs/quickstart) - [Integration guides](https://sandboxagent.dev/docs/deploy)
+[Quickstart](https://sandboxagent.dev/docs/quickstart) — [Deployment guides](https://sandboxagent.dev/docs/deploy)
 
 ### CLI
 
@@ -146,7 +168,7 @@ You can also use npx like:
 npx sandbox-agent --help
 ```
 
-[Documentation](https://sandboxagent.dev/docs/cli)
+[CLI documentation](https://sandboxagent.dev/docs/cli)
 
 ### Inspector
 
@@ -154,7 +176,7 @@ Debug sessions and events with the [Inspector UI](https://inspect.sandboxagent.d
 
 ![Sandbox Agent Inspector](./.github/media/inspector.png)
 
-[Documentation](https://sandboxagent.dev/docs/inspector)
+[Inspector documentation](https://sandboxagent.dev/docs/inspector)
 
 ### OpenAPI Specification
 
@@ -174,6 +196,18 @@ sandbox-agent credentials extract-env --export
 
 This prints environment variables for your OpenAI/Anthropic/etc API keys to test with Sandbox Agent SDK.
 
+## Integrations
+
+Works with your stack:
+
+| Sandbox Providers | AI Platforms | Infrastructure | Storage |
+|---|---|---|---|
+| [Daytona](https://sandboxagent.dev/docs/deploy/daytona) | Anthropic | Docker | Postgres |
+| [E2B](https://sandboxagent.dev/docs/deploy/e2b) | OpenAI | Fly.io | ClickHouse |
+| [Vercel Sandboxes](https://sandboxagent.dev/docs/deploy) | [AI SDK](https://ai-sdk.dev) | AWS Nitro | [Rivet](https://rivet.dev) |
+
+Want support for another agent or sandbox provider? [Open an issue](https://github.com/rivet-dev/sandbox-agent/issues/new) to request it.
+
 ## FAQ
 
 <details>
@@ -191,7 +225,7 @@ Claude Code, Codex, OpenCode, and Amp. The SDK normalizes their APIs so you can 
 <details>
 <summary><strong>How is session data persisted?</strong></summary>
 
-This SDK does not handle persisting session data. Events stream in a universal JSON schema that you can persist anywhere. See [Managing Sessions](https://sandboxagent.dev/docs/manage-sessions) for patterns using Postgres or [Rivet Actors](https://rivet.gg).
+This SDK does not handle persisting session data. Events stream in a universal JSON schema that you can persist anywhere. See [Managing Sessions](https://sandboxagent.dev/docs/manage-sessions) for patterns using Postgres or [Rivet Actors](https://rivet.dev).
 </details>
 
 <details>
@@ -236,15 +270,7 @@ Official SDKs assume local execution. They spawn processes and expect interactiv
 Coding agents expect interactive terminals with proper TTY handling. SSH with piped commands breaks tool confirmations, streaming output, and human-in-the-loop flows. The SDK handles all of this over a clean HTTP API.
 </details>
 
-## Project Goals
-
-This project aims to solve 3 problems with agents:
-
-- **Universal Agent API**: Claude Code, Codex, Amp, and OpenCode all have put a lot of work in to the agent scaffold. Each have respective pros and cons and need to be easy to be swapped between.
-- **Agent Transcript**: Maintaining agent transcripts is difficult since the agent manages its own sessions. This provides a simpler way to read and retrieve agent transcripts in your system.
-- **Agents In Sandboxes**: There are many complications with running agents inside of sandbox providers. This lets you run a simple curl command to spawn an HTTP server for using any agent from within the sandbox.
-
-Features out of scope:
+## Out of Scope
 
 - **Storage of sessions on disk**: Sessions are already stored by the respective coding agents on disk. It's assumed that the consumer is streaming data from this machine to an external storage, such as Postgres, ClickHouse, or Rivet.
 - **Direct LLM wrappers**: Use the [Vercel AI SDK](https://ai-sdk.dev/docs/introduction) if you want to implement your own agent from scratch.
@@ -256,5 +282,3 @@ Features out of scope:
 - [ ] Python SDK
 - [ ] Automatic MCP & skill & hook configuration
 - [ ] Todo lists
-
-
