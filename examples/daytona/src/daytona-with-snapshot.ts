@@ -1,5 +1,5 @@
 import { Daytona, Image } from "@daytonaio/sdk";
-import { logInspectorUrl, runPrompt } from "@sandbox-agent/example-shared";
+import { runPrompt } from "@sandbox-agent/example-shared";
 
 const daytona = new Daytona();
 
@@ -23,7 +23,6 @@ await sandbox.process.executeCommand(
 );
 
 const baseUrl = (await sandbox.getSignedPreviewUrl(3000, 4 * 60 * 60)).url;
-logInspectorUrl({ baseUrl });
 
 const cleanup = async () => {
 	await sandbox.delete(60);
@@ -32,10 +31,5 @@ const cleanup = async () => {
 process.once("SIGINT", cleanup);
 process.once("SIGTERM", cleanup);
 
-// When running as root in a container, Claude requires interactive permission prompts (bypass mode is not supported). Set autoApprovePermissions: true to auto-approve,
-// or leave false for interactive prompts.
-await runPrompt({
-	baseUrl,
-	autoApprovePermissions: process.env.AUTO_APPROVE_PERMISSIONS === "true",
-});
+await runPrompt(baseUrl);
 await cleanup();
